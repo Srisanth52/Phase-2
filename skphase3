@@ -1,0 +1,377 @@
+# Install scikit-surprise library for recommendation system
+!pip install scikit-surprise --quiet
+# ✅ Step 1: Install required packages
+!pip install scikit-surprise --quiet
+
+# ✅ Step 2: Upload the 'ratings.csv' file from the user's folder
+from google.colab import files
+import pandas as pd
+
+# Prompt user to upload 'ratings.csv'
+print("Please upload the 'ratings.csv' file from your local folder.")
+uploaded = files.upload()  # File upload dialog will appear
+
+# Load the uploaded ratings.csv into a DataFrame
+ratings_df = pd.read_csv("ratings.csv")
+
+# Preview the uploaded ratings data
+print("\n🎬 Sample ratings (ratings.csv):")
+print(ratings_df.head())
+
+# ✅ Step 3: Upload the 'movies.csv' file from the user's folder
+print("\nPlease upload the 'movies.csv' file from your local folder.")
+uploaded = files.upload()  # File upload dialog will appear again
+
+# Load the uploaded movies.csv into a DataFrame
+movies_df = pd.read_csv("movies.csv")
+
+# Preview the uploaded movies data
+print("\n🎥 Sample movies (movies.csv):")
+print(movies_df.head())
+!pip install --upgrade numpy
+!pip install scikit-surprise --quiet --no-cache-dir
+!pip uninstall numpy
+!pip install numpy
+!python -c "import numpy; print(numpy.__version__)"
+!pip cache purge
+!pip install numpy
+!pip install pandas scikit-learn
+
+import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+# Create a pivot table: rows = users, columns = movies, values = ratings
+user_movie_matrix = ratings_df.pivot_table(index='userId', columns='movieId', values='rating')
+
+# Fill missing values with 0
+user_movie_matrix_filled = user_movie_matrix.fillna(0)
+
+print("✅ User-Movie Matrix Shape:", user_movie_matrix_filled.shape)
+# Compute cosine similarity between users
+user_similarity = cosine_similarity(user_movie_matrix_filled)
+
+# Convert to DataFrame for readability
+user_sim_df = pd.DataFrame(user_similarity, index=user_movie_matrix.index, columns=user_movie_matrix.index)
+
+print("✅ User-User Similarity Matrix Sample:")
+print(user_sim_df.head())
+def get_movie_recommendations(user_id, n=5):
+    similar_users = user_sim_df[user_id].sort_values(ascending=False)[1:]  # skip self
+    weighted_ratings = pd.Series(dtype=float)
+
+    for sim_user, similarity in similar_users.items():
+        sim_user_ratings = user_movie_matrix.loc[sim_user]
+        weighted = sim_user_ratings * similarity
+        weighted_ratings = weighted_ratings.add(weighted, fill_value=0)
+
+    user_rated = user_movie_matrix.loc[user_id][user_movie_matrix.loc[user_id].notnull()].index
+    weighted_ratings = weighted_ratings.drop(user_rated, errors='ignore')
+
+    top_movies = weighted_ratings.sort_values(ascending=False).head(n)
+    return top_movies
+
+# Example: Recommend for user 1
+top_recommendations = get_movie_recommendations(user_id=1, n=5)
+
+print("\n🎯 Top 5 Recommendations for User 1:")
+for movie_id, score in top_recommendations.items():
+    movie_title = movies_df.loc[movies_df['movieId'] == movie_id, 'title'].values
+    title = movie_title[0] if len(movie_title) > 0 else "Unknown"
+    print(f"🎬 {title}, Score: {score:.2f}")
+# Optional: filter top_movies by genre
+preferred_genre = 'Action'  # Or get this dynamically
+
+# Call get_movie_recommendations to define top_movies
+top_movies = get_movie_recommendations(user_id=1, n=5)
+
+filtered = movies_df[movies_df['movieId'].isin(top_movies.index)]
+filtered = filtered[filtered['genres'].str.contains(preferred_genre, case=False)]
+# Add release year column to movies_df
+movies_df['year'] = movies_df['title'].str.extract(r'\((\d{4})\)').astype(float)
+
+# Optional: filter top_movies by genre
+preferred_genre = 'Action'  # Or get this dynamically
+
+# Call get_movie_recommendations to define top_movies
+top_movies = get_movie_recommendations(user_id=1, n=5)
+
+# Filter by movieId and genre from the original movies_df (which now has 'year')
+filtered = movies_df[movies_df['movieId'].isin(top_movies.index)]
+filtered = filtered[filtered['genres'].str.contains(preferred_genre, case=False)]
+
+# Now filter by year using the 'year' column in filtered
+filtered = filtered[filtered['year'] >= 2010]
+def get_movie_recommendations(user_id, n=5):
+    similar_users = user_sim_df[user_id].sort_values(ascending=False)[1:]  # skip self
+    weighted_ratings = pd.Series(dtype=float)
+
+    for sim_user, similarity in similar_users.items():
+        sim_user_ratings = user_movie_matrix.loc[sim_user]
+        weighted = sim_user_ratings * similarity
+        weighted_ratings = weighted_ratings.add(weighted, fill_value=0)
+
+    user_rated = user_movie_matrix.loc[user_id][user_movie_matrix.loc[user_id].notnull()].index
+    weighted_ratings = weighted_ratings.drop(user_rated, errors='ignore')
+
+    top_movies = weighted_ratings.sort_values(ascending=False).head(n)
+
+    # Return both top_movies and weighted_ratings
+    return top_movies, weighted_ratings
+
+# Example: Recommend for user 1
+top_recommendations, weighted_ratings = get_movie_recommendations(user_id=1, n=5) # Assign the output to top_recommendations
+
+print("\n🎯 Top 5 Recommendations for User 1:")
+for movie_id, score in top_recommendations.items():
+    movie_title = movies_df.loc[movies_df['movieId'] == movie_id, 'title'].values
+    title = movie_title[0] if len(movie_title) > 0 else "Unknown"
+    print(f"🎬 {title}, Score: {score:.2f}")
+# Compute cosine similarity between movie genres (dummy encoded)
+genre_matrix = movies_df['genres'].str.get_dummies(sep='|')
+movie_similarity = cosine_similarity(genre_matrix)
+
+# Average user-based and content-based scores (optional advanced step)
+preferred_genre = input("Enter preferred genre (e.g., Comedy): ")
+min_year = int(input("Enter minimum release year: "))
+def get_movie_recommendations_filtered(user_id, genre_filter="Action", min_year=1995, n=5):
+    # Get similar users
+    similar_users = user_sim_df[user_id].sort_values(ascending=False)[1:]  # skip self
+    weighted_ratings = pd.Series(dtype=float)
+
+    for sim_user, similarity in similar_users.items():
+        sim_user_ratings = user_movie_matrix.loc[sim_user]
+        weighted = sim_user_ratings * similarity
+        weighted_ratings = weighted_ratings.add(weighted, fill_value=0)
+
+    # Drop movies already rated by this user
+    user_rated = user_movie_matrix.loc[user_id][user_movie_matrix.loc[user_id].notnull()].index
+    weighted_ratings = weighted_ratings.drop(user_rated, errors='ignore')
+
+    # Normalize score (optional)
+    weighted_ratings /= similar_users.sum()
+
+    # Merge with movie metadata
+    movie_info = movies_df.copy()
+    movie_info['year'] = movie_info['title'].str.extract(r'\((\d{4})\)').astype(float)
+
+    # Apply genre and year filters
+    filtered = movie_info[
+        (movie_info['movieId'].isin(weighted_ratings.index)) &
+        (movie_info['genres'].str.contains(genre_filter, case=False, na=False)) &
+        (movie_info['year'] >= min_year)
+    ]
+
+    # Add predicted scores
+    filtered['score'] = filtered['movieId'].map(weighted_ratings)
+
+    # Get top N
+    top_recs = filtered.sort_values(by='score', ascending=False).head(n)
+    return top_recs[['title', 'genres', 'year', 'score']]
+
+# 🔍 Example usage:
+genre_input = "Action"
+min_year_input = 1995
+
+recommendations = get_movie_recommendations_filtered(user_id=1, genre_filter=genre_input, min_year=min_year_input)
+print(f"\n🎯 Top 5 Recommendations for User 1 — Genre: {genre_input}, After {min_year_input}:\n")
+print(recommendations.to_string(index=False))
+
+def get_custom_recommendations(user_id, genre_filters=None, start_year=None, end_year=None, keyword=None, top_n=5):
+    similar_users = user_sim_df[user_id].sort_values(ascending=False)[1:]
+    weighted_ratings = pd.Series(dtype=float)
+
+    for sim_user, similarity in similar_users.items():
+        sim_user_ratings = user_movie_matrix.loc[sim_user]
+        weighted = sim_user_ratings * similarity
+        weighted_ratings = weighted_ratings.add(weighted, fill_value=0)
+
+    # Remove already watched
+    user_rated = user_movie_matrix.loc[user_id][user_movie_matrix.loc[user_id].notnull()].index
+    weighted_ratings = weighted_ratings.drop(user_rated, errors='ignore')
+    weighted_ratings /= similar_users.sum()  # normalize
+
+    movie_info = movies_df.copy()
+    movie_info['year'] = movie_info['title'].str.extract(r'\((\d{4})\)').astype(float)
+
+    # Filter by genres
+    if genre_filters:
+        genre_filters = [g.strip().lower() for g in genre_filters]
+        genre_mask = movie_info['genres'].apply(lambda g: any(gen in g.lower() for gen in genre_filters))
+        movie_info = movie_info[genre_mask]
+
+    # Filter by year range
+    if start_year:
+        movie_info = movie_info[movie_info['year'] >= start_year]
+    if end_year:
+        movie_info = movie_info[movie_info['year'] <= end_year]
+
+    # Filter by keyword in title
+    if keyword:
+        movie_info = movie_info[movie_info['title'].str.contains(keyword, case=False, na=False)]
+
+    # Merge scores
+    movie_info['score'] = movie_info['movieId'].map(weighted_ratings)
+    movie_info = movie_info.dropna(subset=['score'])
+
+    # Final top recommendations
+    top_recs = movie_info.sort_values('score', ascending=False).head(top_n)
+    return top_recs[['title', 'genres', 'year', 'score']]
+def get_movie_recommendations_filtered(user_id, genre_filter="Action", min_year=1995, n=5):
+    # Get similar users
+    similar_users = user_sim_df[user_id].sort_values(ascending=False)[1:]  # skip self
+    weighted_ratings = pd.Series(dtype=float)
+
+    for sim_user, similarity in similar_users.items():
+        sim_user_ratings = user_movie_matrix.loc[sim_user]
+        weighted = sim_user_ratings * similarity
+        weighted_ratings = weighted_ratings.add(weighted, fill_value=0)
+
+    # Drop movies already rated by this user
+    user_rated = user_movie_matrix.loc[user_id][user_movie_matrix.loc[user_id].notnull()].index
+    weighted_ratings = weighted_ratings.drop(user_rated, errors='ignore')
+
+    # Normalize score (optional)
+    weighted_ratings /= similar_users.sum()
+
+    # Merge with movie metadata
+    movie_info = movies_df.copy()
+    movie_info['year'] = movie_info['title'].str.extract(r'\((\d{4})\)').astype(float)
+
+    # Apply genre and year filters
+    filtered = movie_info[
+        (movie_info['movieId'].isin(weighted_ratings.index)) &
+        (movie_info['genres'].str.contains(genre_filter, case=False, na=False)) &
+        (movie_info['year'] >= min_year)
+    ]
+
+    # Add predicted scores
+    filtered['score'] = filtered['movieId'].map(weighted_ratings)
+
+    # Get top N
+    top_recs = filtered.sort_values(by='score', ascending=False).head(n)
+    return top_recs[['title', 'genres', 'year', 'score']]
+
+# 🔍 Example usage:
+genre_input = "Action"
+min_year_input = 1995
+
+recommendations = get_movie_recommendations_filtered(user_id=1, genre_filter=genre_input, min_year=min_year_input)
+print(f"\n🎯 Top 5 Recommendations for User 1 — Genre: {genre_input}, After {min_year_input}:\n")
+print(recommendations.to_string(index=False))
+
+# 🎛️ User input section
+user_id = 1
+genre_input = input("Enter preferred genres (comma-separated, e.g., Action,Comedy): ")
+start_year = int(input("Enter start year (e.g. 1995): "))
+end_year = int(input("Enter end year (e.g. 2020): "))
+keyword = input("Enter keyword in title (optional): ")
+
+# Run the recommender
+genre_list = genre_input.split(',') if genre_input else []
+recommendations = get_custom_recommendations(
+    user_id=user_id,
+    genre_filters=genre_list,
+    start_year=start_year,
+    end_year=end_year,
+    keyword=keyword,
+    top_n=5
+)
+
+print("\n🎯 Custom Top 5 Recommendations:\n")
+print(recommendations.to_string(index=False))
+
+# 🎛️ User input section with Yes/No for keyword
+user_id = 1
+genre_input = input("Enter preferred genres (comma-separated, e.g., Action,Comedy): ")
+start_year = int(input("Enter start year (e.g. 1995): "))
+end_year = int(input("Enter end year (e.g. 2020): "))
+
+use_keyword = input("Do you want to filter by a keyword in the title? (yes/no): ").strip().lower()
+keyword = None
+if use_keyword == 'yes':
+    keyword = input("Enter keyword in title (e.g., war, love): ")
+
+# 🎛️ User input section with Yes/No for keyword
+user_id = 1
+genre_input = input("Enter preferred genres (comma-separated, e.g., Action,Comedy): ")
+start_year = int(input("Enter start year (e.g. 1995): "))
+end_year = int(input("Enter end year (e.g. 2020): "))
+
+use_keyword = input("Do you want to filter by a keyword in the title? (yes/no): ").strip().lower()
+keyword = None
+if use_keyword == 'yes':
+    keyword = input("Enter keyword in title (e.g., war, love): ")
+
+# Prepare the genre list
+genre_list = genre_input.split(',') if genre_input else []
+
+# Run the recommender with or without keyword filter
+recommendations = get_custom_recommendations(
+    user_id=user_id,
+    genre_filters=genre_list,
+    start_year=start_year,
+    end_year=end_year,
+    keyword=keyword,  # Will be None if "No" selected
+    top_n=5
+)
+
+# Display recommendations
+print("\n🎯 Custom Top 5 Recommendations:\n")
+print(recommendations.to_string(index=False))
+220
+# 🎛️ User input section with validation for genres and years
+user_id = 1
+
+# Load movies data (example of movie dataset being loaded)
+# Make sure this is the movies dataset loaded already earlier in the process
+movies_data = pd.read_csv('movies.csv')
+
+# Extract year from title and add as a new column
+movies_data['year'] = movies_data['title'].str.extract(r'\((\d{4})\)').astype(float)
+
+# Get available genres from the dataset (combining all genres)
+available_genres = set()
+for genre_list in movies_data['genres'].str.split('|'):
+    available_genres.update(genre_list)
+
+# Get available years from the dataset
+available_years = set(movies_data['year'])
+
+# User inputs for genres and years
+genre_input = input("Enter preferred genres (comma-separated, e.g., Action,Comedy): ").lower()
+start_year = int(input("Enter start year (e.g. 1995): "))
+end_year = int(input("Enter end year (e.g. 2020): "))
+
+# Validate genres
+genre_list = genre_input.split(',')
+invalid_genres = [genre for genre in genre_list if genre not in available_genres]
+
+if invalid_genres:
+    print(f"\n⚠️ The following genres are not found in the dataset: {', '.join(invalid_genres)}")
+
+# Validate years
+if start_year not in available_years or end_year not in available_years:
+    print(f"\n⚠️ One or both of the years are not valid in the dataset. Valid years are between {min(available_years)} and {max(available_years)}.")
+
+# Proceed if valid genres and years
+use_keyword = input("Do you want to filter by a keyword in the title? (yes/no): ").strip().lower()
+keyword = None
+if use_keyword == 'yes':
+    keyword = input("Enter keyword in title (e.g., war, love): ")
+
+# Run the recommender if valid input
+if not invalid_genres and start_year in available_years and end_year in available_years:
+    recommendations = get_custom_recommendations(
+        user_id=user_id,
+        genre_filters=genre_list,
+        start_year=start_year,
+        end_year=end_year,
+        keyword=keyword,  # Will be None if "No" selected
+        top_n=5
+    )
+
+    # Display recommendations
+    print("\n🎯 Custom Top 5 Recommendations:\n")
+    print(recommendations.to_string(index=False))
+else:
+    print("\n⚠️ Please fix the invalid input and try again.")
